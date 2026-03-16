@@ -37,6 +37,7 @@ type model struct {
 	width         int
 	height        int
 	help          help.Model
+	selected_uid  *uint32
 }
 
 type updateTickMsg time.Time
@@ -56,6 +57,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sw.total_summary.UpdateMetrics(m.objs.NfsOpsCounts)
 		// m.updateTables()
 		m.updateUserTable()
+		if m.selected_uid != nil {
+			m.updateTrafficTableWithIP(*m.selected_uid)
+		}
 		return m, tea.Batch(
 			updateTableEvery(1 * time.Second),
 		)
@@ -76,6 +80,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				idx := m.user_table.Cursor()
 				uid := m.sw.total_summary.ordered_users[idx].uid
 				m.updateTrafficTableWithIP(uid)
+				m.selected_uid = &uid
 			}
 			return m, tea.Batch(
 				tea.Printf("Let's go to %s!", m.user_table.SelectedRow()[1]),
@@ -143,7 +148,7 @@ func bubble_render(sw *SlidingWindow, objs *collectorObjects) {
 	users_table.SetStyles(s)
 	traffic_table.SetStyles(s)
 
-	m := model{users_table, traffic_table, sw, objs, w, h, help.New()}
+	m := model{users_table, traffic_table, sw, objs, w, h, help.New(),nil}
 	if _, err := tea.NewProgram(&m, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
