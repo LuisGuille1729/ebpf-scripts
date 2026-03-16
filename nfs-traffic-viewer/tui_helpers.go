@@ -75,7 +75,7 @@ func (m *model) updateUserTable() {
 		r := table.Row{
 			username,
 			fmt.Sprintf("%d", um.usage_total),
-			"-",
+			fmt.Sprintf("%.2f", um.usage_normalized*100),
 		}
 		rows = append(rows, r)
 	}
