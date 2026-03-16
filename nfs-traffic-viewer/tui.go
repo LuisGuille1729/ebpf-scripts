@@ -37,7 +37,6 @@ type model struct {
 	width         int
 	height        int
 	help          help.Model
-	selected_uid  *uint32
 }
 
 type updateTickMsg time.Time
@@ -57,8 +56,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sw.total_summary.UpdateMetrics(m.objs.NfsOpsCounts)
 		// m.updateTables()
 		m.updateUserTable()
-		if m.selected_uid != nil {
-			m.updateTrafficTableWithIP(*m.selected_uid)
+		// Check the cursor location 
+		if m.user_table.Focused() {
+			idx := m.user_table.Cursor()
+			if len(m.sw.total_summary.ordered_users) > 0 {
+				uid := m.sw.total_summary.ordered_users[idx].uid
+				m.updateTrafficTableWithIP(uid)
+			}
 		}
 		return m, tea.Batch(
 			updateTableEvery(1 * time.Second),
@@ -75,16 +79,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "q", "ctrl+c":
 			return m, tea.Quit
-		case "enter":
-			if m.user_table.Focused() {
-				idx := m.user_table.Cursor()
-				uid := m.sw.total_summary.ordered_users[idx].uid
-				m.updateTrafficTableWithIP(uid)
-				m.selected_uid = &uid
-			}
-			return m, tea.Batch(
-				tea.Printf("Let's go to %s!", m.user_table.SelectedRow()[1]),
-			)
+		//case "enter":
+		//	if m.user_table.Focused() {
+		//		idx := m.user_table.Cursor()
+		//		uid := m.sw.total_summary.ordered_users[idx].uid
+		//		m.updateTrafficTableWithIP(uid)
+		//		m.selected_uid = &uid
+		//	}
+		//	return m, tea.Batch(
+		//		tea.Printf("Let's go to %s!", m.user_table.SelectedRow()[1]),
+		//	)
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -148,7 +152,7 @@ func bubble_render(sw *SlidingWindow, objs *collectorObjects) {
 	users_table.SetStyles(s)
 	traffic_table.SetStyles(s)
 
-	m := model{users_table, traffic_table, sw, objs, w, h, help.New(), nil}
+	m := model{users_table, traffic_table, sw, objs, w, h, help.New()}
 	if _, err := tea.NewProgram(&m, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
