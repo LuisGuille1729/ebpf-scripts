@@ -37,9 +37,21 @@ type WindowSummary struct {
 }
 
 func (w *WindowSummary) sortUsers() {
-	// todo: instead of recreating array, just add new users
+	// track a grand total of I/O
+	var grand_total uint64
+
+	// Go over the unsorted array and calculate the grand total of I/O
+	for _, user := range w.users {
+		grand_total += user.usage_total
+	}
+
+	// TODO: instead of recreating array, just add new users
 	w.ordered_users = make([]*UserMetrics, 0)
 	for _, user := range w.users {
+		// update the user struct to get the % of I/O
+		if grand_total > 0 {
+			user.usage_normalized = float32(user.usage_total) / float32(grand_total)
+		}
 		w.ordered_users = append(w.ordered_users, user)
 	}
 
