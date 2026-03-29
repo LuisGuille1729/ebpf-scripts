@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log"
 	"slices"
+	"sync"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/ringbuf"
@@ -24,6 +25,7 @@ type SlidingWindow struct {
 
 	total_summary WindowSummary
 
+	ino_mu           sync.RWMutex
 	ino_to_filenames map[uint64]string
 }
 
@@ -161,8 +163,9 @@ func (sw *SlidingWindow) MaintainInodeResolution(file_ringbuf *ebpf.Map) {
 			continue
 		}
 
-		// Log to file resolution map (better way to do this?)
+		sw.ino_mu.Lock()
 		sw.ino_to_filenames[event.Ino] = string(event.Pname[:bytes.IndexByte(event.Pname[:], 0)]) + "/" + string(event.Name[:bytes.IndexByte(event.Name[:], 0)])
+		sw.ino_mu.Unlock()
 	}
 }
 

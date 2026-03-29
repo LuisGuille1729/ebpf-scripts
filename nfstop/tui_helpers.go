@@ -97,9 +97,10 @@ func (m *model) updateTrafficTableWithIP(uid uint32) {
 	for _, file := range user_metric.ordered_files {
 
 		// ino to filename resolution
+		m.sw.ino_mu.RLock()
 		filename, ok := m.sw.ino_to_filenames[file.ino]
+		m.sw.ino_mu.RUnlock()
 		if !ok {
-			// fall back to ino
 			filename = fmt.Sprintf("%d", file.ino)
 		}
 
@@ -146,9 +147,10 @@ func (m *model) updateTables() tea.Msg {
 		for ino_ip, metrics := range umetrics.files {
 
 			// ino to filename resolution
+			m.sw.ino_mu.RLock()
 			filename, ok := m.sw.ino_to_filenames[ino_ip.ino]
+			m.sw.ino_mu.RUnlock()
 			if !ok {
-				// fall back to ino
 				filename = fmt.Sprintf("%d", ino_ip.ino)
 			}
 
