@@ -59,7 +59,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check the cursor location 
 		if m.user_table.Focused() {
 			idx := m.user_table.Cursor()
-			if len(m.sw.total_summary.ordered_users) > 0 {
+			if idx >= 0 && len(m.sw.total_summary.ordered_users) > 0 {
 				uid := m.sw.total_summary.ordered_users[idx].uid
 				m.updateTrafficTableWithIP(uid)
 			}
