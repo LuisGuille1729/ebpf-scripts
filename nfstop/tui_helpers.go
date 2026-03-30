@@ -31,13 +31,12 @@ func makeUserColumns(width int) []table.Column {
 
 func makeTrafficColumnsWithIP(width int) []table.Column {
 	return []table.Column{
-		{Title: "FILENAME", Width: width * 14 / 100},
+		{Title: "PATH HINT", Width: width * 30 / 100},
 		{Title: "IPv4", Width: width * 9 / 100},
 		{Title: "READS", Width: width * 6 / 100},
 		{Title: "RBYTES", Width: width * 9 / 100},
 		{Title: "WRITES", Width: width * 6 / 100},
 		{Title: "WBYTES", Width: width * 9 / 100},
-		{Title: "PATH", Width: width * 30 / 100},
 	}
 }
 
@@ -111,7 +110,6 @@ func (m *model) updateTrafficTableWithIP(uid uint32) {
 			fmt.Sprintf("%d", file.r_bytes),
 			fmt.Sprintf("%d", file.w_ops_count),
 			fmt.Sprintf("%d", file.w_bytes),
-			filename,
 		}
 		rows = append(rows, r)
 	}
@@ -168,7 +166,6 @@ func (m *model) updateTables() tea.Msg {
 				fmt.Sprintf("%d", metrics.r_bytes),
 				fmt.Sprintf("%d", metrics.w_ops_count),
 				fmt.Sprintf("%d", metrics.w_bytes),
-				filename,
 			}
 			rows_traffic = append(rows_traffic, r_traffic)
 		}
