@@ -40,15 +40,25 @@ __u32 get_ipv4(struct svc_rqst *rqstp) {
     }
 }
 
-void get_name(char *buf, __u32 buflen, struct dentry *dentry_ptr) {
-    const unsigned char *name_ptr = BPF_CORE_READ(dentry_ptr, d_name.name);
-    if (name_ptr)
-        bpf_probe_read_str(buf, buflen, (const void *)name_ptr);
-}
 
-struct dentry *get_parent_dentry(struct dentry *dentry_ptr) {
-    return BPF_CORE_READ(dentry_ptr, d_parent);
-}
+// use macro to avoid assuming type of dentry_ptr
+#define get_name(buf, buflen, dentry_ptr)                                      \
+({                                                                             \
+    const unsigned char *__name_ptr = NULL;                                    \
+    if (dentry_ptr) {                                                          \
+        __name_ptr = BPF_CORE_READ(dentry_ptr, d_name.name);                   \
+        if (__name_ptr)                                                        \
+            bpf_probe_read_str(buf, buflen, (const void *)__name_ptr);         \
+    }                                                                          \
+})
+
+#define get_parent_dentry(dentry_ptr)                                          \
+({                                                                             \
+    typeof(BPF_CORE_READ(dentry_ptr, d_parent)) __parent = NULL;               \
+    if (dentry_ptr)                                                            \
+        __parent = BPF_CORE_READ(dentry_ptr, d_parent);                        \
+    __parent;                                                                  \
+})
 
 /** End of Helper Functions */
 
@@ -97,14 +107,14 @@ int BPF_PROG(write_ops, struct svc_rqst *rqstp,
     struct key_t key = {};
 
     // get dentry
-    struct dentry *dentry_ptr = BPF_CORE_READ(cstate, current_fh.fh_dentry);
+    typeof(BPF_CORE_READ(cstate, current_fh.fh_dentry)) dentry_ptr = BPF_CORE_READ(cstate, current_fh.fh_dentry);
     if (!dentry_ptr) {
         bpf_printk("Could not read dentry!\n");
         return 0;
     }
 
     // get ino
-    struct inode *inode_ptr = BPF_CORE_READ(dentry_ptr, d_inode);
+    typeof(BPF_CORE_READ(dentry_ptr, d_inode)) inode_ptr = BPF_CORE_READ(dentry_ptr, d_inode);
     if (!inode_ptr) {
         bpf_printk("Could not read inode!\n");
         return 0;
@@ -116,7 +126,7 @@ int BPF_PROG(write_ops, struct svc_rqst *rqstp,
     get_name(fname, sizeof(fname), dentry_ptr);
 
     // get parent name
-    struct dentry *pdentry_ptr = get_parent_dentry(dentry_ptr);
+    typeof(get_parent_dentry(dentry_ptr)) pdentry_ptr = get_parent_dentry(dentry_ptr);
     char pname[64];
     get_name(pname, sizeof(pname), pdentry_ptr);
 
@@ -168,27 +178,34 @@ int BPF_PROG(read_ops, struct svc_rqst *rqstp,
     struct key_t key = {};
 
     // get dentry
-    struct dentry *dentry_ptr = BPF_CORE_READ(cstate, current_fh.fh_dentry);
+    typeof(BPF_CORE_READ(cstate, current_fh.fh_dentry)) dentry_ptr =
+        BPF_CORE_READ(cstate, current_fh.fh_dentry);
+
     if (!dentry_ptr) {
         bpf_printk("Could not read dentry!\n");
         return 0;
     }
 
     // get ino
-    struct inode *inode_ptr = BPF_CORE_READ(dentry_ptr, d_inode);
+    typeof(BPF_CORE_READ(dentry_ptr, d_inode)) inode_ptr =
+        BPF_CORE_READ(dentry_ptr, d_inode);
+
     if (!inode_ptr) {
         bpf_printk("Could not read inode!\n");
         return 0;
     }
+
     key.ino = BPF_CORE_READ(inode_ptr, i_ino);
 
     // get filename
-    char fname[64];
+    char fname[64] = {};
     get_name(fname, sizeof(fname), dentry_ptr);
 
     // get parent name
-    struct dentry *pdentry_ptr = get_parent_dentry(dentry_ptr);
-    char pname[64];
+    typeof(get_parent_dentry(dentry_ptr)) pdentry_ptr =
+        get_parent_dentry(dentry_ptr);
+
+    char pname[64] = {};
     get_name(pname, sizeof(pname), pdentry_ptr);
 
     // send filename to ringbuf
