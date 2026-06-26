@@ -19,6 +19,19 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+#define DEBUG 0
+
+// Output debug information, can be read through
+// `cat /sys/kernel/tracing/trace_pipe`
+// or `bpftool prog tracelog`
+#if DEBUG
+#define debug_printk(fmt, args...) bpf_printk(fmt, ##args)
+#else
+#define debug_printk(fmt, args...)                                             \
+    do {                                                                       \
+    } while (0)
+#endif
+
 /** Helper Functions **/
 
 __u32 get_ipv4(struct svc_rqst *rqstp) {
@@ -58,7 +71,6 @@ __u32 get_ipv4(struct svc_rqst *rqstp) {
             __parent = BPF_CORE_READ(dentry_ptr, d_parent);                    \
         __parent;                                                              \
     })
-
 /** End of Helper Functions */
 
 struct key_t {
@@ -109,7 +121,7 @@ int BPF_PROG(write_ops, struct svc_rqst *rqstp,
     typeof(BPF_CORE_READ(cstate, current_fh.fh_dentry)) dentry_ptr =
         BPF_CORE_READ(cstate, current_fh.fh_dentry);
     if (!dentry_ptr) {
-        bpf_printk("Could not read dentry!\n");
+        debug_printk("Could not read dentry!\n");
         return 0;
     }
 
@@ -117,7 +129,7 @@ int BPF_PROG(write_ops, struct svc_rqst *rqstp,
     typeof(BPF_CORE_READ(dentry_ptr, d_inode)) inode_ptr =
         BPF_CORE_READ(dentry_ptr, d_inode);
     if (!inode_ptr) {
-        bpf_printk("Could not read inode!\n");
+        debug_printk("Could not read inode!\n");
         return 0;
     }
     key.ino = BPF_CORE_READ(inode_ptr, i_ino);
@@ -149,7 +161,7 @@ int BPF_PROG(write_ops, struct svc_rqst *rqstp,
 
     // get bytes
     __u32 bytes = BPF_CORE_READ(u, write.wr_payload.buflen);
-    bpf_printk("nfs write %u to %u\n", bytes, key.ino);
+    debug_printk("nfs write %u to %u\n", bytes, key.ino);
 
     // update map (write metrics)
     struct val_t *val = bpf_map_lookup_elem(&nfs_ops_counts, &key);
@@ -176,7 +188,7 @@ SEC("fentry/nfsd4_read")
 int BPF_PROG(read_ops, struct svc_rqst *rqstp,
              struct nfsd4_compound_state *cstate, union nfsd4_op_u *u) {
 
-    bpf_printk("READ OPERATION");
+    debug_printk("READ OPERATION");
     struct key_t key = {};
 
     // get dentry
@@ -184,7 +196,7 @@ int BPF_PROG(read_ops, struct svc_rqst *rqstp,
         BPF_CORE_READ(cstate, current_fh.fh_dentry);
 
     if (!dentry_ptr) {
-        bpf_printk("Could not read dentry!\n");
+        debug_printk("Could not read dentry!\n");
         return 0;
     }
 
@@ -193,7 +205,7 @@ int BPF_PROG(read_ops, struct svc_rqst *rqstp,
         BPF_CORE_READ(dentry_ptr, d_inode);
 
     if (!inode_ptr) {
-        bpf_printk("Could not read inode!\n");
+        debug_printk("Could not read inode!\n");
         return 0;
     }
 
@@ -225,7 +237,7 @@ int BPF_PROG(read_ops, struct svc_rqst *rqstp,
 
     // get bytes
     __u32 bytes = BPF_CORE_READ(u, read.rd_length);
-    bpf_printk("nfs read %u\n", bytes);
+    debug_printk("nfs read %u\n", bytes);
 
     // update map
     struct val_t *val = bpf_map_lookup_elem(&nfs_ops_counts, &key);
