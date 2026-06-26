@@ -175,7 +175,7 @@ func (w *WindowSummary) UpdateMetrics(ebpf_map *ebpf.Map) {
 
 	var keys []collectorKeyT
 
-	var valtmp collectorValT
+	var valtmp []collectorValT
 	var key collectorKeyT
 	// populate all the keys
 	for iterator.Next(&key, &valtmp) {
@@ -184,10 +184,19 @@ func (w *WindowSummary) UpdateMetrics(ebpf_map *ebpf.Map) {
 
 	// obtain the values corresponding to the keys
 	for _, k := range keys {
-		var val collectorValT
-		if err := ebpf_map.LookupAndDelete(k, &val); err != nil {
+		var perCPUVals []collectorValT
+		if err := ebpf_map.LookupAndDelete(k, &perCPUVals); err != nil {
 			log.Printf("Delete error %v", err)
 			continue
+		}
+
+		// Sum values across all CPUs before aggregating
+		var val collectorValT
+		for _, cpuVal := range perCPUVals {
+			val.W_requests += cpuVal.W_requests
+			val.W_bytes += cpuVal.W_bytes
+			val.R_requests += cpuVal.R_requests
+			val.R_bytes += cpuVal.R_bytes
 		}
 
 		//fmt.Printf("UID: %d | Inode: %d | Requests: %d | Total Bytes: %d\n", k.Uid, k.Ino, val.W_requests, val.W_bytes)

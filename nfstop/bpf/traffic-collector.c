@@ -75,7 +75,7 @@ struct val_t {
 };
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_PERCPU_HASH);
     __type(key, struct key_t);
     __type(value, struct val_t);
     __uint(max_entries, 10240);
